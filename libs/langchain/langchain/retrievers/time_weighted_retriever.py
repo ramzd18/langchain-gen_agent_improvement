@@ -27,7 +27,7 @@ class TimeWeightedVectorStoreRetriever(BaseRetriever):
     memory_stream: List[Document] = Field(default_factory=list)
     """The memory_stream of documents to search through."""
 
-    decay_rate: float = Field(default=0.01)
+    decay_rate: float = Field(default=0.001)
     """The exponential decay factor used as (1.0-decay_rate)**(hrs_passed)."""
 
     k: int = 4
@@ -66,7 +66,7 @@ class TimeWeightedVectorStoreRetriever(BaseRetriever):
             current_time,
             self._document_get_date("last_accessed_at", document),
         )
-        score = (1.0 - self.decay_rate) ** hours_passed
+        score = (1.0 - self.decay_rate) ** (1-.001*hours_passed)
         for key in self.other_score_keys:
             if key in document.metadata:
                 score += document.metadata[key]
