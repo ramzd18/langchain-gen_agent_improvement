@@ -1,5 +1,6 @@
 [tool.poetry]
 name = "langchain-monorepo"
+requires-python = ">=3.9"
 version = "0.0.1"
 description = "LangChain mono-repo"
 authors = []
@@ -42,8 +43,3 @@ ignore-regex = '.*(Stati Uniti|Tense=Pres).*'
 # unsecure - typo but part of API, decided to not bother for now
 ignore-words-list = 'momento,collison,ned,foor,reworkd,parth,whats,aapply,mysogyny,unsecure,damon,crate,aadd,symbl,precesses,accademia,nin'
 
-[tool.setuptools.packages.find]
-where = ["."]  # list of folders that contain the packages (["."] by default)
-include = []  # package names should match these glob patterns (["*"] by default)
-exclude = []  # exclude packages matching these glob patterns (empty by default)
-namespaces = false  # to disable scanning PEP 420 namespaces (true by default)
