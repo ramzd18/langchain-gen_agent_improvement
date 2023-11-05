@@ -21,9 +21,11 @@ class GenerativeAgentMemory(BaseMemory):
     memory_retriever: TimeWeightedVectorStoreRetriever
     """The retriever to fetch related memories."""
     social_media_memory: TimeWeightedVectorStoreRetriever
+
+    product_memory: TimeWeightedVectorStoreRetriever
     verbose: bool = False
     ### Changing reflection threshold to be 100 so agent stops and reflects after aggregate score of 120
-    reflection_threshold: Optional[float] = 180
+    reflection_threshold: Optional[float] = 500
     """When aggregate_importance exceeds reflection_threshold, stop to reflect."""
     current_plan: List[str] = []
     """The current plan of the agent."""
@@ -36,7 +38,7 @@ class GenerativeAgentMemory(BaseMemory):
     Triggers reflection when it reaches reflection_threshold."""
     personalitylist: dict= {"extraversion": 0.0,"agreeableness":0.0, "openness":0.0, "conscientiousness":0.0,"neuroticism":0.0 }
 
-    max_tokens_limit: int = 1200  # : :meta private:
+    max_tokens_limit: int = 1500  # : :meta private:
     # input keys
     queries_key: str = "queries"
     most_recent_memories_token_key: str = "recent_memories_token"
@@ -74,6 +76,23 @@ class GenerativeAgentMemory(BaseMemory):
         )
         result = self.chain(prompt).run(observations=observation_str)
         return self._parse_list(result)
+    
+
+    def  search_prodct_questions(self, product, last_k: int = 25) -> List[str]:
+        prompt = PromptTemplate.from_template(
+            " Relevant Memories: {observations}\n\n"
+            "Given these relevant information from a person's memories, what are seven relevant things you think they would search up to learn more about {product} \n"
+            "Infer things to search up even if the given if the relevant information is not relevant to {product}. Make sure the questions relate to {product} and are specific questions"
+            "Seperate each thing you want to learn with ;."
+        )
+        observations = self.fetch_socialmedia_memories(product)
+        observation_str = "\n".join(
+            [self._format_memory_detail(o) for o in observations]
+        )
+        result = self.chain(prompt).run(observations=observation_str,product=product)
+        result= self._parse_list(result)
+        result.pop(0)
+        return result
 
     def _get_insights_on_topic(
         self, topic: str, now: Optional[datetime] = None
@@ -106,7 +125,7 @@ class GenerativeAgentMemory(BaseMemory):
         # TODO: Parse the connections between memories and insights
         return self._parse_list(result)
     
-    def get_insights_recentmemories( self, last_k:int= 25, now:Optional[datetime]=None):
+    def get_insights_recentmemories( self, last_k:int= 20, now:Optional[datetime]=None):
         prompt = PromptTemplate.from_template(
             "{observations}\n\n"
             "Given these recent memories, what are the 4 most salient "
@@ -114,6 +133,7 @@ class GenerativeAgentMemory(BaseMemory):
             "Provide each insight on a new line."
         )
         observations = self.memory_retriever.memory_stream[-last_k:]
+        observations += self.social_media_memory.memory_stream[-last_k:]
         observation_str = "\n".join(
             [self._format_memory_detail(o) for o in observations]
         )
@@ -214,6 +234,18 @@ class GenerativeAgentMemory(BaseMemory):
             self.aggregate_importance = 0.0
             self.reflecting = False
         return result
+    def add_product_memory(self, memory_content:str, now:Optional[datetime]=None) -> List[str]: 
+        "Add article to produc_memory "
+        print("Adding product")
+        document = Document(
+            page_content=memory_content, metadata={"importance": .15}
+        )
+        result= self.product_memory.add_documents([document],current_time=now)
+        return result
+    
+
+        
+
 ##### END of method 
     # def _get_topics_of_reflection(self, last_k: int = 25) -> List[str]:
     #     """Return the 3 most salient high-level questions about recent observations."""

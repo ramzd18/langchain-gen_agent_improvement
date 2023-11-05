@@ -235,14 +235,13 @@ Relevant context:
         """React to a given observation or dialogue act."""
         prompt = PromptTemplate.from_template(
             "{agent_summary_description}"
-            + "\nIt is {current_time}."
             # + "\n{agent_name}'s status: {agent_status}"
             +"\n Agents's major personalities traits:"
             +"\n{personality}"
             + "\nSummary of relevant context from {agent_name}'s memory:"
             + "\n{relevant_memories}"
             # + "\nMost recent observations: {most_recent_memories}"
-            +"\n Use the following information to generate a response from the agent's perspective. If you truly cannot infer any response respond with the phrase I am not able to anwser this question"
+            +"\n Use the following information to generate a response from {agent_name}'s perspective. Anwser the question and only anwser from {agent_name}'s perspective. Do not include anything about being an AI model. "
             + "\nThe questions being asked: {question}"
             + "\n\n"
             # + suffix
@@ -256,14 +255,16 @@ Relevant context:
             else now.strftime("%B %d, %Y, %I:%M %p")
         )
         kwargs: Dict[str, Any] = dict(
-            agent_summary_description=agent_summary_description,
-            current_time=current_time_str,
+            agent_summary_description=self.education_and_work+ "    "+ self.interests,
             relevant_memories=relevant_memories_str,
             personality=self.memory.personalitylist,
+            agent_name= self.name,
+            question=question
+
             # agent_status=self.status,
         )
         
-        return self.chain(prompt=prompt).run(**kwargs).strip()
+        return self.chain(prompt).run(**kwargs).strip()
     
     # def daily_scheudle_memoreies(self, now:Optional[datetime]=None)-> str: 
     #     prompt=PromptTemplate.from_template(
@@ -299,7 +300,43 @@ Relevant context:
              self.memory.add_memories(mem)
 
          return memories
+    def product_to_memory(self, prodcut):
+        total=len(self.memory.product_memory.vectorstore.index_to_docstore_id)
+        iter=total/6
+        
+        lowerbounds=0
+        upperbounds=lowerbounds+iter
+        if(total<6 ):
+            upperbounds=total-1
+            iter=2
 
+        
+        documentstr=""; 
+        social_mem=self.memory.fetch_socialmedia_memories(prodcut)
+        while upperbounds<total:
+            print("product memorying")
+            memorystream= self.memory.product_memory.memory_stream[lowerbounds:upperbounds]
+            observation_str = "\n".join(
+            [self.memory._format_memory_detail(o) for o in memorystream
+             ])
+            prompt = PromptTemplate.from_template(
+            "Here is a list of articles about {product}: "
+            "---\n"
+            "{observation_str}\n"
+            "---\n"
+            "Here are a list of {name}'s relevent memories towards {product}  on social media:"
+            "---\n"
+            "{social_str}\n"
+            "---\n"
+            "Here is a summmary of Ram: {summary} \n"
+            "Here are Ram's personality traits: {personality} \n"
+            "Given this generate an extensive list of insights {name} would have based on reading these articles. Write the insights from the perspective of {name} and only include {name}'s personal insights and how they relate to his information. Seperate them with a ;"
+        )
+            result =self.memory.chain(prompt).run(product=prodcut,observation_str=observation_str,name=self.name,social_str=social_mem,summary=self.education_and_work+" Interests: "+self.interests,personality=self.memory.personalitylist)
+            self.memory.add_memories(result)
+            print(result)
+            lowerbounds=upperbounds
+            upperbounds=upperbounds+iter
 
 
     ######################################################
